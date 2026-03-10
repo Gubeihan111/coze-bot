@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的智能体</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        #chat { height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        .user { text-align: right; color: blue; margin: 5px 0; }
+        .bot { text-align: left; color: green; margin: 5px 0; }
+        input { width: 80%; padding: 8px; }
+        button { padding: 8px 15px; }
+    </style>
+</head>
+<body>
+    <h2>智能体对话</h2>
+    <div id="chat"></div>
+    <input type="text" id="userInput" placeholder="输入你的问题..." />
+    <button onclick="sendMessage()">发送</button>
+
+    <script>
+        let userId = localStorage.getItem('userId');
+        if (!userId) {
+            userId = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('userId', userId);
+        }
+
+        const chatDiv = document.getElementById('chat');
+        const userInput = document.getElementById('userInput');
+
+        async function sendMessage() {
+            const question = userInput.value.trim();
+            if (!question) return;
+
+            appendMessage('user', question);
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, question })
+                });
+                const data = await response.json();
+                if (data.reply) {
+                    appendMessage('bot', data.reply);
+                } else {
+                    appendMessage('bot', '出错了：' + data.error);
+                }
+            } catch (err) {
+                appendMessage('bot', '网络错误，请稍后重试');
+            }
+        }
+
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = sender;
+            msgDiv.textContent = text;
+            chatDiv.appendChild(msgDiv);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>

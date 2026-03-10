@@ -1,0 +1,7 @@
+{
+  "name": "coze-bot-proxy",
+  "version": "1.0.0",
+  "dependencies": {
+    "mongodb": "^5.0.0"
+  }
+}
