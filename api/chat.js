@@ -18,20 +18,16 @@ async function connectToDatabase() {
 }
 
 module.exports = async (req, res) => {
-    console.log('Request received:', req.method, req.body);
-
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { userId, question } = req.body || {};
+    const { userId, question } = req.body;
     if (!userId || !question) {
         return res.status(400).json({ error: 'Missing userId or question' });
     }
 
     try {
-        // 1. 调用扣子 API
-        console.log('Calling Coze API...');
         const cozeResponse = await fetch(COZE_API_URL, {
             method: 'POST',
             headers: {
@@ -52,20 +48,44 @@ module.exports = async (req, res) => {
             })
         });
 
-        console.log('Coze API response status:', cozeResponse.status);
-        const responseText = await cozeResponse.text();
-        console.log('Coze API raw response:', responseText);
-
-        let botReply = '无法解析回复';
-        try {
-            const cozeData = JSON.parse(responseText);
-            botReply = cozeData.content || cozeData.reply || cozeData.answer || JSON.stringify(cozeData);
-        } catch (parseErr) {
-            console.error('JSON parse error:', parseErr);
-            botReply = responseText; // 直接返回原始文本
+        if (!cozeResponse.ok) {
+            const errorText = await cozeResponse.text();
+            console.error('Coze API error:', cozeResponse.status, errorText);
+            return res.status(502).json({ error: `Coze API responded with ${cozeResponse.status}` });
         }
 
-        // 2. 存入数据库
+        // 处理 SSE 流
+        const reader = cozeResponse.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let fullAnswer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const dataStr = line.slice(6);
+                    try {
+                        const eventData = JSON.parse(dataStr);
+                        if (eventData.type === 'answer' && eventData.content?.answer) {
+                            fullAnswer += eventData.content.answer;
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse event data:', dataStr, e);
+                    }
+                }
+            }
+        }
+
+        const botReply = fullAnswer.trim() || '无法获取回复';
+
+        // 存入数据库
         try {
             const client = await connectToDatabase();
             const db = client.db(DB_NAME);
@@ -77,16 +97,14 @@ module.exports = async (req, res) => {
                 botResponse: botReply,
                 timestamp: new Date()
             });
-            console.log('Database insert success');
         } catch (dbErr) {
             console.error('Database error:', dbErr);
-            // 即使数据库失败，也继续返回回复
         }
 
         res.status(200).json({ reply: botReply });
 
     } catch (error) {
         console.error('Unhandled error:', error);
-        res.status(500).json({ error: 'Internal server error: ' + error.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
