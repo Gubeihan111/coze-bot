@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>智能体对话 · 头像版</title>
+    <title>智能体对话 · 自定义头像</title>
+    <!-- 引入 Font Awesome 用于发送按钮等（可保留或删除） -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * {
@@ -40,16 +41,15 @@
             border-bottom: 1px solid rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
-        /* 修改：顶部机器人的图片样式 */
-        .chat-header img {
-            width: 42px;
-            height: 42px;
+        .chat-header i {
+            font-size: 1.8rem;
+            color: #667eea;
+            background: white;
+            padding: 8px;
             border-radius: 50%;
-            object-fit: cover;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            background: #f0f4f8; 
         }
         .chat-header h2 {
             font-weight: 600;
@@ -77,27 +77,21 @@
         .message.bot {
             justify-content: flex-start;
         }
-        /* 修改：聊天气泡旁的头像框样式 */
         .avatar {
             width: 36px;
             height: 36px;
             border-radius: 50%;
+            overflow: hidden;
             background: #e0e0e0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             flex-shrink: 0;
-            overflow: hidden; /* 确保图片不会超出圆形边界 */
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
-        /* 新增：确保图片填满头像框 */
         .avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
         .user .avatar {
-            order: 1;
+            order: 1; /* 用户头像显示在右侧 */
         }
         .bubble {
             max-width: 70%;
@@ -174,6 +168,7 @@
             font-size: 1.5rem;
             color: white;
         }
+        /* 滚动条美化 */
         .messages-area::-webkit-scrollbar {
             width: 6px;
         }
@@ -188,6 +183,7 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* 正在输入动画 */
         .typing-indicator {
             display: flex;
             gap: 4px;
@@ -214,8 +210,7 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <!-- 替换为机器人头像图片 -->
-            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Gemini&backgroundColor=b6e3f4" alt="Bot Avatar" id="headerBotAvatar">
+            <i class="fas fa-robot"></i>
             <h2>智能体小助手</h2>
         </div>
         <div class="messages-area" id="chat">
@@ -230,10 +225,7 @@
     </div>
 
     <script>
-        // 定义头像链接，方便全局统一修改
-        const BOT_AVATAR_URL = "https://api.dicebear.com/7.x/bottts/svg?seed=Gemini&backgroundColor=b6e3f4";
-        const USER_AVATAR_URL = "https://api.dicebear.com/7.x/adventurer/svg?seed=User&backgroundColor=ffd5dc";
-
+        // 用户ID管理
         let userId = localStorage.getItem('userId');
         if (!userId) {
             userId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -244,6 +236,7 @@
         const userInput = document.getElementById('userInput');
         let isLoading = false;
 
+        // 初始欢迎消息
         window.onload = function() {
             appendMessage('bot', '你好！我是你的智能体助手，有什么可以帮你的吗？');
         };
@@ -283,10 +276,8 @@
             const typingDiv = document.createElement('div');
             typingDiv.className = 'message bot';
             typingDiv.id = 'typing-' + Date.now();
-            
-            // 使用图片代替图标
             typingDiv.innerHTML = `
-                <div class="avatar"><img src="${BOT_AVATAR_URL}" alt="Bot"></div>
+                <div class="avatar"><img src="/images/bot-avatar.png" alt="bot"></div>
                 <div class="typing-indicator">
                     <span></span><span></span><span></span>
                 </div>
@@ -305,13 +296,13 @@
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${sender}`;
 
-            // 创建头像 (修改为使用 img 标签)
+            // 创建头像（使用自定义图片）
             const avatarDiv = document.createElement('div');
             avatarDiv.className = 'avatar';
             if (sender === 'user') {
-                avatarDiv.innerHTML = `<img src="${USER_AVATAR_URL}" alt="User">`;
+                avatarDiv.innerHTML = '<img src="/images/user-avatar.png" alt="user">';
             } else {
-                avatarDiv.innerHTML = `<img src="${BOT_AVATAR_URL}" alt="Bot">`;
+                avatarDiv.innerHTML = '<img src="/images/bot-avatar.png" alt="bot">';
             }
 
             // 创建气泡
@@ -319,14 +310,14 @@
             bubbleDiv.className = 'bubble';
             bubbleDiv.textContent = text;
 
-            // 可选时间戳
+            // 时间戳
             const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
             const timeSpan = document.createElement('div');
             timeSpan.className = 'timestamp';
             timeSpan.textContent = time;
             bubbleDiv.appendChild(timeSpan);
 
-            // 组装：用户消息（头像在右），机器人消息（头像在左）
+            // 组装：用户消息（气泡在左，头像在右），机器人消息（头像在左，气泡在右）
             if (sender === 'user') {
                 msgDiv.appendChild(bubbleDiv);
                 msgDiv.appendChild(avatarDiv);
